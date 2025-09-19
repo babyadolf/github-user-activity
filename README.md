@@ -1,6 +1,4 @@
 # github-user-activity
-I took this idea from [github-user-activity](https://roadmap.sh/projects/github-user-activity), a challenge from [roadmap.sh](https://roadmap.sh/).
-
 This script fetches the latest events for a given GitHub username and prints them.
 
 ## How to run
