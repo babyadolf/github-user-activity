@@ -5,7 +5,7 @@ This script fetches the latest events for a given GitHub username and prints the
 
 ## How to run
 
-Clone the repository and run the following command:
+Clone the repository:
 
 ```bash
 git clone https://github.com/babyadolf/github-user-activity.git
