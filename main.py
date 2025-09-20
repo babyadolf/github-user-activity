@@ -18,8 +18,12 @@ def show_events(user):
     if res.status_code != 200:
         print(f"Error fetching events for {user}: {res.status_code}")
         return
+    events = res.json()
+    if not events:
+        print(f"No latest events for [bold yellow]{user}[/bold yellow].")
+        return
     print(f"Latest events for [bold green]{user}[/bold green]:")
-    for e in res.json():
+    for e in events:
         msg = EVENT_MAP.get(e["type"], lambda ev: f"- {ev['type']}")(e)
         print(msg)
 
