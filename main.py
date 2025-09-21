@@ -101,7 +101,7 @@ def format_summary(summary):
             lines.append(f"  {icon} {desc} [{time}]")
     return lines
 
-
+# This function fetches events and displays them, no need to change anything here
 def show_events(user):
     res = requests.get(f"https://api.github.com/users/{user}/events", timeout=10)
     if res.status_code != 200:
