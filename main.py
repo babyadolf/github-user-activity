@@ -2,95 +2,103 @@ import sys
 import requests
 from rich import print
 from collections import defaultdict
+from datetime import datetime, timezone
 
+
+# Emojis for event types like idk commit, issue, pr, review, star, fork, release etc.
+EVENT_ICONS = {
+    "PushEvent": "🔧",
+    "IssueCommentEvent": "💬",
+    "IssuesEvent": "🐛",
+    "PullRequestEvent": "🚀",
+    "PullRequestReviewEvent": "👀",
+    "PullRequestReviewCommentEvent": "💭",
+    "WatchEvent": "⭐",
+    "CreateEvent": "📦",
+    "ForkEvent": "🍴",
+    "ReleaseEvent": "🏷️",
+    "Other": "❓",
+}
+
+
+def relative_time(timestr: str) -> str:
+    """Convert GitHub timestamp to 'Xh ago' style."""
+    dt = datetime.strptime(timestr, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    diff = datetime.now(timezone.utc) - dt
+    seconds = diff.total_seconds()
+    if seconds < 60:
+        return f"{int(seconds)}s ago"
+    elif seconds < 3600:
+        return f"{int(seconds // 60)}m ago"
+    elif seconds < 86400:
+        return f"{int(seconds // 3600)}h ago"
+    else:
+        return f"{int(seconds // 86400)}d ago"
+
+
+# Group events by repo, collecting type + extra info like commit count, issue/pr number, etc.
 def summarize_events(events):
+    """Group events by repo, collecting type + extra info."""
     summary = defaultdict(list)
 
     for e in events:
         etype = e["type"]
+        repo = e["repo"]["name"]
+        time = relative_time(e["created_at"])
 
         if etype == "PushEvent":
-            repo = e["repo"]["name"]
             commit_count = len(e["payload"].get("commits", []))
-            summary[etype].append((repo, commit_count))
+            summary[repo].append((etype, f"pushed {commit_count} commit(s)", time))
 
         elif etype == "IssueCommentEvent":
             issue = e["payload"]["issue"]["number"]
-            repo = e["repo"]["name"]
-            summary[etype].append((repo, issue))
+            summary[repo].append((etype, f"commented on issue #{issue}", time))
 
         elif etype == "IssuesEvent":
             issue = e["payload"]["issue"]["number"]
-            repo = e["repo"]["name"]
-            summary[etype].append((repo, issue))
+            summary[repo].append((etype, f"opened issue #{issue}", time))
 
         elif etype == "PullRequestEvent":
             pr = e["payload"]["pull_request"]["number"]
-            repo = e["repo"]["name"]
-            summary[etype].append((repo, pr))
+            summary[repo].append((etype, f"opened pull request #{pr}", time))
 
         elif etype == "PullRequestReviewEvent":
             pr = e["payload"]["pull_request"]["number"]
-            repo = e["repo"]["name"]
-            summary[etype].append((repo, pr))
+            summary[repo].append((etype, f"reviewed pull request #{pr}", time))
 
         elif etype == "PullRequestReviewCommentEvent":
             pr = e["payload"]["pull_request"]["number"]
-            repo = e["repo"]["name"]
-            summary[etype].append((repo, pr))
+            summary[repo].append((etype, f"commented on pull request #{pr}", time))
 
         elif etype == "WatchEvent":
-            repo = e["repo"]["name"]
-            summary[etype].append(repo)
+            summary[repo].append((etype, "starred the repo", time))
 
         elif etype == "CreateEvent":
             ref_type = e["payload"]["ref_type"]
             ref = e["payload"]["ref"]
-            repo = e["repo"]["name"]
-            summary[etype].append((repo, ref_type, ref))
+            summary[repo].append((etype, f"created {ref_type} {ref}", time))
+
+        elif etype == "ForkEvent":
+            summary[repo].append((etype, "forked the repo", time))
+
+        elif etype == "ReleaseEvent":
+            release = e["payload"]["release"]["tag_name"]
+            summary[repo].append((etype, f"published release {release}", time))
 
         else:
-            summary["Other"].append(etype)
+            summary[repo].append(("Other", f"{etype}", time))
 
     return summary
 
-
+# Format the summary for pretty terminal output
 def format_summary(summary):
+    """Pretty print grouped events with emojis + times."""
     lines = []
-    for etype, items in summary.items():
-        if etype == "PushEvent":
-            repo_commits = defaultdict(int)
-            for repo, count in items:
-                repo_commits[repo] += count
-            for repo, total in repo_commits.items():
-                lines.append(f"- pushed {total} commit(s) to [bold blue]{repo}[/bold blue]")
-
-        elif etype == "IssueCommentEvent":
-            lines.append(f"- commented on {len(items)} issue(s)")
-
-        elif etype == "IssuesEvent":
-            lines.append(f"- opened {len(items)} issue(s)")
-
-        elif etype == "PullRequestEvent":
-            lines.append(f"- opened {len(items)} pull request(s)")
-
-        elif etype == "PullRequestReviewEvent":
-            lines.append(f"- reviewed {len(items)} pull request(s)")
-
-        elif etype == "PullRequestReviewCommentEvent":
-            lines.append(f"- commented on {len(items)} pull request(s)")
-
-        elif etype == "WatchEvent":
-            repos = ", ".join(set(items))
-            lines.append(f"- starred {len(items)} repo(s): {repos}")
-
-        elif etype == "CreateEvent":
-            for repo, ref_type, ref in items:
-                lines.append(f"- created {ref_type} {ref} in [bold blue]{repo}[/bold blue]")
-
-        elif etype == "Other":
-            lines.append(f"- {len(items)} other event(s)")
-
+    for repo, events in summary.items():
+        lines.append(f"\n[bold blue]{repo}[/bold blue] ({len(events)} event(s))")
+        for etype, desc, time in events:
+            icon = EVENT_ICONS.get(etype, "❓")
+            lines.append(f"  {icon} {desc} [{time}]")
     return lines
 
 
@@ -110,7 +118,7 @@ def show_events(user):
     for line in lines:
         print(line)
 
-
+# Entry point
 def main():
     if len(sys.argv) < 2:
         print("Please provide a GitHub username as a command line argument.")
