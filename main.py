@@ -20,7 +20,7 @@ EVENT_ICONS = {
     "Other": "❓",
 }
 
-
+# Convert Github timestamp to relative time like '2h ago
 def relative_time(timestr: str) -> str:
     """Convert GitHub timestamp to 'Xh ago' style."""
     dt = datetime.strptime(timestr, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
